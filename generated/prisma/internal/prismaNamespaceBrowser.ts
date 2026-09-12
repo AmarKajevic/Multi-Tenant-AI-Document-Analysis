@@ -51,9 +51,9 @@ export const AnyNull = runtime.AnyNull
 
 
 export const ModelName = {
-  User: 'User',
   Organization: 'Organization',
   OrganizationMember: 'OrganizationMember',
+  User: 'User',
   Document: 'Document'
 } as const
 
@@ -73,21 +73,10 @@ export const TransactionIsolationLevel = runtime.makeStrictEnum({
 export type TransactionIsolationLevel = (typeof TransactionIsolationLevel)[keyof typeof TransactionIsolationLevel]
 
 
-export const UserScalarFieldEnum = {
-  id: 'id',
-  clerkUserId: 'clerkUserId',
-  name: 'name',
-  email: 'email',
-  createdAt: 'createdAt'
-} as const
-
-export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
-
-
 export const OrganizationScalarFieldEnum = {
   id: 'id',
-  clerkUserId: 'clerkUserId',
-  email: 'email',
+  clerkOrgId: 'clerkOrgId',
+  name: 'name',
   slug: 'slug',
   createdAt: 'createdAt'
 } as const
@@ -97,12 +86,23 @@ export type OrganizationScalarFieldEnum = (typeof OrganizationScalarFieldEnum)[k
 
 export const OrganizationMemberScalarFieldEnum = {
   id: 'id',
-  organizationid: 'organizationid',
+  organizationId: 'organizationId',
   userId: 'userId',
   role: 'role'
 } as const
 
 export type OrganizationMemberScalarFieldEnum = (typeof OrganizationMemberScalarFieldEnum)[keyof typeof OrganizationMemberScalarFieldEnum]
+
+
+export const UserScalarFieldEnum = {
+  id: 'id',
+  clerkUserId: 'clerkUserId',
+  email: 'email',
+  name: 'name',
+  createdAt: 'createdAt'
+} as const
+
+export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
 
 
 export const DocumentScalarFieldEnum = {
@@ -112,10 +112,10 @@ export const DocumentScalarFieldEnum = {
   fileUrl: 'fileUrl',
   fileSize: 'fileSize',
   fileType: 'fileType',
-  aiSumary: 'aiSumary',
+  aiSummary: 'aiSummary',
   aiKeywords: 'aiKeywords',
   sentiment: 'sentiment',
-  organizationid: 'organizationid',
+  organizationId: 'organizationId',
   userId: 'userId',
   createdAt: 'createdAt'
 } as const
