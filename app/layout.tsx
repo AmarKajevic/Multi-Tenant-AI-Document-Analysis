@@ -5,6 +5,7 @@ import "./globals.css";
 import Header from "@/components/common/header";
 import Footer from "@/components/common/footer";
 import { suncUserToDatabase } from "@/lib/sync-user";
+import { Toaster } from "sonner";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -29,6 +30,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           <main className="flex-1">{children}</main>
           {/* footer */}
           <Footer/>
+          <Toaster position="top-right" richColors />
 
         </div>
       </body>

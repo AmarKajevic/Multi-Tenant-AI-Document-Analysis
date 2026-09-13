@@ -1,19 +1,57 @@
 "use client";
 
-import { Brain, Home, LogIn, UserPlus, Users } from "lucide-react";
+import { Brain, Building, FileText, Home, LogIn, UserPlus, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "../ui/button";
-import { Show, UserButton, useClerk } from "@clerk/nextjs";
+import { Show, UserButton, useClerk, useOrganization, useUser } from "@clerk/nextjs";
 
 export default function Header() {
   const pathname = usePathname();
+  const {user} =  useUser();
+
+  const {organization} = useOrganization()
+
   const { openSignIn, openSignUp } = useClerk();
 
-  const navItems = [
-    { href: "/", label: "Home", icon: <Home className="w-4 h-4" /> },
-    { href: "/select-org", label: "Switch Organization", icon: <Users className="w-4 h-4" /> },
-  ];
+    const getNavItems = () => {
+    const baseItems = [
+      { href: "/", label: "Home", icon: <Home className="h-4 w-4" /> },
+    ];
+
+    // If user is in an organization
+    if (organization) {
+      return [
+        ...baseItems,
+        {
+          href: `/${organization.slug}`,
+          label: "Organization Dashboard",
+          icon: <Building className="h-4 w-4" />,
+        },
+        {
+          href: `/${organization.slug}/documents`,
+          label: "Org Documents",
+          icon: <FileText className="h-4 w-4" />,
+        },
+        {
+          href: "/select-org",
+          label: "Switch Organization",
+          icon: <Users className="h-4 w-4" />,
+        },
+      ];
+    }
+    // If user is new
+    return [
+      ...baseItems,
+      {
+        href: "/select-org",
+        label: "Switch Organization",
+        icon: <Users className="h-4 w-4" />,
+      },
+    ];
+  };
+
+  const navItems = getNavItems();
 
   return (
     <header className="sticky top-0 z-50 w-full bg-white/95 border-b backdrop-blur supports-[backdrop-filter]:bg-white/60">
@@ -40,6 +78,15 @@ export default function Header() {
         </nav>
 
         <div className="flex items-center gap-4">
+          <Show when="signed-in">
+            <div className="md:flex items-center gap-2">
+              <span className="text-sm text-gray-600">
+                {organization ? `In :${organization.name}` : user?.firstName || user?.username}
+              </span>
+              <UserButton/>
+            </div>
+
+          </Show>
          <Show when="signed-out">
             {/* Opcija A: Clerk modal (preporučeno) */}
             <div className="hidden md:flex items-center gap-2">
