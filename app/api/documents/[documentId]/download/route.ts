@@ -70,7 +70,7 @@ export async function GET(request: Request, { params }: RouteParams) {
         "Content-Disposition": `attachment; filename="${encodeURIComponent(document.name)}"`,
       },
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Document download error:", error);
     return NextResponse.json(
       { error: "Failed to download document" },

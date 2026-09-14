@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { uploadToBlob } from "@/lib/blob";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { getOrgUsage } from "@/lib/usage";
 
 export async function POST(request: Request) {
   try {
@@ -17,13 +18,6 @@ export async function POST(request: Request) {
     const clerkOrgId = formData.get("organizationId") as string; // Rename to clarify
     const file = formData.get("file") as File;
 
-    console.log("🔍 API Input:", {
-      name,
-      clerkOrgId,
-      file: file?.name,
-      fileSize: file?.size,
-    });
-
     if (!name || !clerkOrgId) {
       return NextResponse.json(
         { error: "Name and organization ID are required" },
@@ -36,16 +30,9 @@ export async function POST(request: Request) {
       where: { clerkOrgId: clerkOrgId },
     });
 
-    console.log("🔍 Found organization:", {
-      found: !!organization,
-      clerkId: clerkOrgId,
-      dbId: organization?.id,
-      name: organization?.name,
-    });
-
     if (!organization) {
       return NextResponse.json(
-        { error: `Organization not found for Clerk ID: ${clerkOrgId}` },
+        { error: "Organization not found" },
         { status: 404 },
       );
     }
@@ -63,21 +50,21 @@ export async function POST(request: Request) {
       },
     });
 
-    console.log("🔍 User and memberships:", {
-      userFound: !!user,
-      userId: user?.id,
-      email: user?.email,
-      membershipsCount: user?.memberships?.length,
-      membershipOrgIds: user?.memberships?.map((m) => m.organizationId),
-    });
-
     if (!user || user.memberships.length === 0) {
       return NextResponse.json(
-        {
-          error: "You do not have access to this organization",
-          details: `User ${userId} is not a member of ${organization.name}`,
-        },
+        { error: "You do not have access to this organization" },
         { status: 403 },
+      );
+    }
+
+    const usage = await getOrgUsage(organization.id, organization.planTier);
+    if (usage.documents.exceeded) {
+      return NextResponse.json(
+        {
+          error: `Monthly document limit reached (${usage.documents.used}/${usage.documents.limit} on the ${organization.planTier} plan)`,
+          usage,
+        },
+        { status: 429 },
       );
     }
 
@@ -97,16 +84,7 @@ export async function POST(request: Request) {
       if (!extractedContent && file.type.includes("text")) {
         extractedContent = await file.text();
       }
-
-      console.log("✅ File uploaded:", { fileUrl, fileSize, fileType });
     }
-
-    // Create document - Use DATABASE IDs
-    console.log("📝 Creating document with:", {
-      name,
-      organizationId: organization.id, // DATABASE ID
-      userId: user.id, // DATABASE ID
-    });
 
     const document = await prisma.document.create({
       data: {
@@ -135,8 +113,6 @@ export async function POST(request: Request) {
       },
     });
 
-    console.log("✅ Document created successfully:", document.id);
-
     return NextResponse.json({
       success: true,
       message: "Document uploaded successfully",
@@ -149,14 +125,10 @@ export async function POST(request: Request) {
         uploadedBy: document.user.name,
       },
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Document upload error:", error);
     return NextResponse.json(
-      {
-        error: error.message || "Failed to upload document",
-        details:
-          process.env.NODE_ENV === "development" ? error.stack : undefined,
-      },
+      { error: "Failed to upload document" },
       { status: 500 },
     );
   }
@@ -205,8 +177,6 @@ export async function GET(request: Request) {
       },
     });
 
-    console.log("User", user);
-
     if (!user || user.memberships.length === 0) {
       return NextResponse.json(
         { error: "You do not have access to this organization" },
@@ -234,18 +204,21 @@ export async function GET(request: Request) {
       orderBy: { createdAt: "desc" },
     });
 
+    const usage = await getOrgUsage(organization.id, organization.planTier);
+
     return NextResponse.json({
       documents,
       metadata: {
         organization: organization.name,
         clerkOrgId: organization.clerkOrgId,
         documentCount: documents.length,
+        usage,
       },
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Get documents error:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to get documents" },
+      { error: "Failed to get documents" },
       { status: 500 },
     );
   }

@@ -7,9 +7,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, Users, Brain, ArrowRight, Upload } from "lucide-react";
+import { FileText, Brain, ArrowRight, Upload } from "lucide-react";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { getOrgUsage } from "@/lib/usage";
+import { UsageCard } from "@/components/document/usage-card";
 
 interface OrgDashboardPageProps {
   params: Promise<{ orgSlug: string }>; // Add Promise wrapper
@@ -50,12 +52,16 @@ export default async function OrgDashboardPage({
     },
   });
 
+  const usage = await getOrgUsage(organization.id, organization.planTier);
+
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold">{organization.name} Dashboard</h1>
         <p className="text-gray-600">Welcome to your organization workspace</p>
       </div>
+
+      <UsageCard usage={usage} />
 
       {/* Stats */}
       <div className="grid md:grid-cols-3 gap-6">

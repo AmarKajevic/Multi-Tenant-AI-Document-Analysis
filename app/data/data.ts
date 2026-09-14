@@ -4,6 +4,7 @@ import {
   Brain,
   Hash,
   List,
+  LucideIcon,
   MessageCircle,
   MessageSquare,
   Shield,
@@ -54,7 +55,7 @@ export const analysisTypes: {
   value: AnalysisType;
   label: string;
   description: string;
-  icon: React.ComponentType<any>;
+  icon: LucideIcon;
 }[] = [
   {
     value: "summary",

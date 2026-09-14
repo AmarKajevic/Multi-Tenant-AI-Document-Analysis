@@ -15,7 +15,6 @@ import {
 import {
   Building,
   Plus,
-  Users,
   ArrowRight,
   Loader2,
   RefreshCw,
@@ -109,15 +108,20 @@ export default function SelectOrgPage() {
       refreshOrganizations();
 
       router.refresh(); // Refresh server components
-    } catch (error: any) {
+    } catch (error) {
       console.error("Failed to create organization:", error);
-      toast.error(error.message || "Failed to create organization");
+      const message =
+        error instanceof Error ? error.message : "Failed to create organization";
+      toast.error(message);
     } finally {
       setIsCreating(false);
     }
   };
 
-  const handleSelectOrg = async (organization: any) => {
+  const handleSelectOrg = async (organization: {
+    id: string;
+    slug: string | null;
+  }) => {
     try {
       if (setActive) {
         await setActive({
@@ -130,13 +134,6 @@ export default function SelectOrgPage() {
       toast.error("Failed to switch organization");
     }
   };
-
-  // Debug: Log current organization list
-  console.log("Current organization list:", {
-    isLoaded,
-    count: userMemberships?.count,
-    data: userMemberships?.data?.map((org) => org.organization.name),
-  });
 
   return (
     <div className="container max-w-4xl mx-auto p-6">
@@ -193,18 +190,38 @@ export default function SelectOrgPage() {
       {/* Your Organizations */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Building className="h-5 w-5" />
-            Your Organizations ({userMemberships?.count || 0})
-          </CardTitle>
-          <CardDescription>
-            {userMemberships?.count === 0
-              ? "Create your first organization above"
-              : "Click on an organization to enter"}
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Building className="h-5 w-5" />
+                Your Organizations ({userMemberships?.count || 0})
+              </CardTitle>
+              <CardDescription>
+                {userMemberships?.count === 0
+                  ? "Create your first organization above"
+                  : "Click on an organization to enter"}
+              </CardDescription>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={refreshOrganizations}
+              disabled={isRefreshing || !isLoaded}
+              title="Refresh organization list"
+            >
+              <RefreshCw
+                className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
+              />
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
-          {userMemberships?.count === 0 ? (
+          {!isLoaded ? (
+            <div className="text-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-gray-400" />
+              <p className="text-gray-600">Loading organizations...</p>
+            </div>
+          ) : userMemberships?.count === 0 ? (
             <div className="text-center py-12">
               <Building className="h-16 w-16 text-gray-300 mx-auto mb-4" />
               <p className="text-gray-600 mb-2">No organizations yet</p>

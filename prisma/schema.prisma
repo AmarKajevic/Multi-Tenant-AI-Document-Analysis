@@ -12,10 +12,14 @@ model Organization {
   clerkOrgId  String   @unique
   name        String
   slug        String   @unique
+  // No billing provider wired up yet — this just gates which limits apply
+  // (see lib/plans.ts). Ready to be flipped by a Stripe webhook later.
+  planTier    String   @default("free")
   createdAt   DateTime @default(now())
   members     OrganizationMember[]
   documents   Document[]
-  
+  analysisRuns AnalysisRun[]
+
   @@map("organizations")
 }
 
@@ -61,4 +65,20 @@ model Document {
   createdAt      DateTime @default(now())
 
   @@map("documents")
+}
+
+// One row per completed AI analysis. Exists mainly to enforce the monthly
+// analysis quota (see lib/usage.ts) — re-analyzing the same document counts
+// again, unlike just checking Document.aiSummary != null — but it doubles as
+// a lightweight audit trail of AI usage per organization.
+model AnalysisRun {
+  id             String   @id @default(cuid())
+  organizationId String
+  documentId     String
+  analysisType   String
+  createdAt      DateTime @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt])
+  @@map("analysis_runs")
 }

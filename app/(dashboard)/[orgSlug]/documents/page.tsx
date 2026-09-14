@@ -1,9 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useOrganization, useUser } from "@clerk/nextjs";
-import { Button } from "@/components/ui/button";
-import ReactMarkdown from "react-markdown";
+import { useState, useEffect, useCallback } from "react";
+import { useOrganization } from "@clerk/nextjs";
 import {
   Card,
   CardContent,
@@ -14,7 +12,8 @@ import {
 import { FileText, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { DocumentUploadDialog } from "@/components/document/document-upload-dialog";
-import { AnalysisType, Document } from "@/types";
+import { UsageCard } from "@/components/document/usage-card";
+import { AnalysisType, Document, OrgUsage } from "@/types";
 import { analysisTypes, formatFileSize } from "@/app/data/data";
 import { DocumentCard } from "@/components/document/document-card";
 
@@ -22,6 +21,7 @@ export default function DocumentsPage() {
   const { organization } = useOrganization();
 
   const [documents, setDocuments] = useState<Document[]>([]);
+  const [usage, setUsage] = useState<OrgUsage | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAnalyzing, setIsAnalyzing] = useState<string | null>(null);
   const [expandedSummaries, setExpandedSummaries] = useState<Set<string>>(
@@ -31,7 +31,7 @@ export default function DocumentsPage() {
     useState<AnalysisType>("summary");
 
   // Fetch documents
-  const fetchDocuments = async () => {
+  const fetchDocuments = useCallback(async () => {
     if (!organization) return;
     setIsLoading(true);
     try {
@@ -41,6 +41,7 @@ export default function DocumentsPage() {
       if (response.ok) {
         const data = await response.json();
         setDocuments(data.documents);
+        setUsage(data.metadata?.usage ?? null);
       }
     } catch (error) {
       console.error("Failed to fetch documents:", error);
@@ -48,12 +49,13 @@ export default function DocumentsPage() {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  // Initial fetch
-  useEffect(() => {
-    fetchDocuments();
   }, [organization]);
+
+  // Initial fetch, and again whenever the active organization changes.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional fetch-on-mount/org-switch; fetchDocuments manages its own loading state.
+    fetchDocuments();
+  }, [fetchDocuments]);
 
   // Toggle summary expansion
   const toggleSummary = (documentId: string) => {
@@ -83,7 +85,6 @@ export default function DocumentsPage() {
       });
 
       if (response.ok) {
-        const data = await response.json();
         const analysisTypeLabel = analysisTypes.find(
           (type) => type.value === selectedAnalysisType,
         )?.label;
@@ -140,8 +141,14 @@ export default function DocumentsPage() {
         </div>
 
         {/* Upload Dialog */}
-        <DocumentUploadDialog onUploadSuccess={fetchDocuments} />
+        <DocumentUploadDialog
+          onUploadSuccess={fetchDocuments}
+          disabled={usage?.documents.exceeded}
+        />
       </div>
+
+      {/* Usage */}
+      {usage && <UsageCard usage={usage} />}
 
       {/* Stats Bar */}
       {documents.length > 0 && !isLoading && (
@@ -223,6 +230,7 @@ export default function DocumentsPage() {
                   onDelete={handleDelete}
                   onToggleSummary={toggleSummary}
                   expandedSummaries={expandedSummaries}
+                  disableAnalyze={usage?.analyses.exceeded}
                 />
               ))}
             </div>

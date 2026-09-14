@@ -20,11 +20,14 @@ import { allowedTypes } from "@/app/data/data";
 interface DocumentUploadDialogProps {
   onUploadSuccess?: () => void;
   trigger?: React.ReactElement;
+  /** Disables the trigger, e.g. when the org has hit its monthly document quota. */
+  disabled?: boolean;
 }
 
 export function DocumentUploadDialog({
   onUploadSuccess,
   trigger,
+  disabled,
 }: DocumentUploadDialogProps) {
   const { organization } = useOrganization();
   const { user } = useUser();
@@ -125,7 +128,10 @@ export function DocumentUploadDialog({
       <DialogTrigger
         render={
           trigger || (
-            <Button>
+            <Button
+              disabled={disabled}
+              title={disabled ? "Monthly document limit reached" : undefined}
+            >
               <Upload className="h-4 w-4 mr-2" />
               Upload Document
             </Button>

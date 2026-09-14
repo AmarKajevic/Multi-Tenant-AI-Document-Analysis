@@ -34,6 +34,8 @@ interface DocumentCardProps {
   onDelete: (documentId: string) => void;
   onToggleSummary: (documentId: string) => void;
   expandedSummaries: Set<string>;
+  /** Disables the Analyze button, e.g. when the org has hit its monthly analysis quota. */
+  disableAnalyze?: boolean;
 }
 
 // Truncate on a word boundary so we never cut markdown syntax (e.g. "**bold")
@@ -54,6 +56,7 @@ export function DocumentCard({
   onDelete,
   onToggleSummary,
   expandedSummaries,
+  disableAnalyze,
 }: DocumentCardProps) {
   const isExpanded = expandedSummaries.has(doc.id);
 
@@ -232,7 +235,10 @@ export function DocumentCard({
               variant={doc.aiSummary ? "outline" : "default"}
               size="sm"
               onClick={() => onAnalyze(doc.id)}
-              disabled={isAnalyzing}
+              disabled={isAnalyzing || disableAnalyze}
+              title={
+                disableAnalyze ? "Monthly analysis limit reached" : undefined
+              }
               className="justify-start w-full"
             >
               {isAnalyzing ? (

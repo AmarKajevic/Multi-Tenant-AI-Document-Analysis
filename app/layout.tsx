@@ -4,7 +4,6 @@ import { Inter} from "next/font/google";
 import "./globals.css";
 import Header from "@/components/common/header";
 import Footer from "@/components/common/footer";
-import { suncUserToDatabase } from "@/lib/sync-user";
 import { Toaster } from "sonner";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -15,7 +14,10 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  await suncUserToDatabase()
+  // User sync into Postgres now happens via the Clerk webhook
+  // (app/api/webhooks/clerk/route.ts) and as a fallback in the dashboard
+  // layout — no need to hit the DB on every single page view, including
+  // anonymous visits to the marketing page and sign-in/sign-up.
   return (
     <ClerkProvider>
     <html

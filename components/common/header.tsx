@@ -88,13 +88,16 @@ export default function Header() {
 
           </Show>
          <Show when="signed-out">
-            {/* Opcija A: Clerk modal (preporučeno) */}
+            {/* Clerk modal, not a page navigation — avoids a full round trip
+                through /sign-in for what's meant to be a quick action. */}
             <div className="hidden md:flex items-center gap-2">
-              <Button variant="ghost" size="sm">
-                <Link href="/sign-in">Sign In</Link>
+              <Button variant="ghost" size="sm" onClick={() => openSignIn()}>
+                <LogIn className="h-4 w-4" />
+                Sign In
               </Button>
-              <Button  size="sm">
-                <Link href="/sign-up">Sign Up</Link>
+              <Button size="sm" onClick={() => openSignUp()}>
+                <UserPlus className="h-4 w-4" />
+                Sign Up
               </Button>
             </div>
           </Show>
