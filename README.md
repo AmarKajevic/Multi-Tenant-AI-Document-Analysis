@@ -6,12 +6,14 @@ extraction and Q&A from Google Gemini.
 
 [![CI](https://github.com/AmarKajevic/Multi-Tenant-AI-Document-Analysis/actions/workflows/ci.yml/badge.svg)](https://github.com/AmarKajevic/Multi-Tenant-AI-Document-Analysis/actions/workflows/ci.yml)
 
+**🔗 Live demo: [multi-tenat-ai-saas.vercel.app](https://multi-tenat-ai-saas.vercel.app/)**
+
 <!--
   Add a screenshot or short screen-recording GIF of the upload -> analyze
-  flow here before sharing this README — a picture of the actual product
-  sells it far better than the description below. A free screen recorder
-  (ScreenToGif, Kap, LICEcap) is enough; ~10-15s of: open Documents page ->
-  upload a file -> click Analyze -> summary appears is plenty.
+  flow here — a picture of the actual product sells it far better than the
+  description below. A free screen recorder (ScreenToGif, Kap, LICEcap) is
+  enough; ~10-15s of: open Documents page -> upload a file -> click
+  Analyze -> summary appears is plenty.
 
   ![Demo](./docs/demo.gif)
 -->
@@ -21,27 +23,56 @@ extraction and Q&A from Google Gemini.
 A multi-tenant SaaS: each **organization** is an isolated workspace with its
 own members, documents and usage quota. Membership and roles live in
 [Clerk](https://clerk.com) (auth + organizations) and are mirrored into
-Postgres via webhook, which is what every API route authorizes against.
+Postgres via webhook — every API route authorizes against that mirror, never
+against anything the client sends.
 
-**Live demo:** _add your Vercel URL here once deployed (see
-[Deployment](#deployment))._
+## Engineering highlights
+
+The things below aren't just features — they're specific problems that come
+up the moment a "multi-tenant" app has to actually hold that boundary, and
+how each one is closed here:
+
+- **No client-supplied identity is ever trusted for authorization.** Early
+  on, org creation trusted a `clerkOrgId` from the request body — a signed-in
+  user could target *any* organization's ID and get an `owner` row created
+  for it. Fixed by verifying membership against Clerk's Backend API
+  server-side (`app/api/organizations/route.ts`) instead of the request
+  payload; every other route (`documents`, `analyze`, `download`) re-checks
+  membership against Postgres before touching anything.
+- **Role checks are enforced server-side, not just hidden in the UI.**
+  Deleting someone else's document requires the `owner` role — checked in
+  the API route itself (`app/api/documents/[documentId]/route.ts`), so
+  there's no client-side-only gate to route around.
+- **Uploaded files are never publicly reachable by URL.** The Vercel Blob
+  store is private; downloads go through an authenticated proxy route
+  (`/api/documents/[documentId]/download`) that re-verifies org membership
+  before streaming the file, instead of handing back a guessable public
+  link.
+- **The database is a mirror, not a source of truth, for who's in an org.**
+  A Clerk webhook (`/api/webhooks/clerk`, signature-verified) keeps
+  organizations/memberships/users in sync — so a teammate invited or removed
+  in Clerk has correct access immediately, not only for users who happen to
+  click through the app's own "create org" flow.
+- **Usage quotas enforced where they can't be bypassed:** in the API routes
+  themselves (`lib/usage.ts`), not the client — with `Organization.planTier`
+  on the schema specifically so a future billing webhook only has to flip
+  one field, no enforcement logic to rewrite.
+- **A migration history that had silently drifted from the real database**
+  (stale, differently-cased columns from an early schema draft) was
+  diagnosed and repaired without losing the organizations/documents already
+  in it, rather than papering over it with a full reset.
 
 ## Features
 
 - **Organizations** — create/switch workspaces, invite teammates, per-org
-  roles (owner/member) enforced server-side, not just in the UI
-- **Document upload** — text, PDF, Word, Markdown, stored in a private
-  Vercel Blob store (never publicly reachable by URL — served through an
-  authenticated proxy route)
+  roles (owner/member)
+- **Document upload** — text, PDF, Word, Markdown
 - **AI analysis** — summary, Q&A, sentiment, entity extraction, structured
   extraction, via Gemini
-- **Usage limits** — each org gets a monthly document/analysis quota,
-  enforced server-side with a live usage indicator in the UI (see
-  [Usage limits](#usage-limits))
-- **Clerk ⇄ Postgres sync** — a Clerk webhook keeps organizations,
-  memberships and users in sync automatically (invited members, removed
-  members, deleted accounts) — the DB is never the source of truth for who's
-  in an org, Clerk is
+- **Usage limits** — monthly document/analysis quota per org, with a live
+  usage indicator in the UI (see [Usage limits](#usage-limits))
+- **Clerk ⇄ Postgres sync** — organizations, memberships and users stay in
+  sync automatically via webhook
 
 ## Tech stack
 
@@ -55,6 +86,7 @@ Postgres via webhook, which is what every API route authorizes against.
 | UI | Tailwind CSS, shadcn-style components on Base UI |
 | Testing | Vitest (unit), Playwright (E2E) |
 | CI | GitHub Actions |
+| Hosting | Vercel |
 
 ## Architecture
 
@@ -144,6 +176,9 @@ Secrets and variables → Actions) — it's skipped, not failed, until they're
 present.
 
 ## Deployment
+
+Live at **[multi-tenat-ai-saas.vercel.app](https://multi-tenat-ai-saas.vercel.app/)**.
+To deploy your own:
 
 1. Push this repo to GitHub (already done if you're reading this on GitHub).
 2. [Import it on Vercel](https://vercel.com/new) — no build config needed,
