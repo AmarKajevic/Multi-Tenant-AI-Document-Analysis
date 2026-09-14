@@ -176,7 +176,13 @@ export function DocumentCard({
               variant="outline"
               size="sm"
               onClick={() =>
-                window.open(doc.fileUrl, "_blank", "noopener,noreferrer")
+                // The blob store is private — fetch the file through our own
+                // authenticated route instead of doc.fileUrl directly.
+                window.open(
+                  `/api/documents/${doc.id}/download`,
+                  "_blank",
+                  "noopener,noreferrer",
+                )
               }
               title="Download"
               className="justify-start"
