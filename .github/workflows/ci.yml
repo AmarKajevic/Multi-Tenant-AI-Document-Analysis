@@ -37,12 +37,17 @@ jobs:
 
   # Full-stack E2E tests against a production build. Needs real (dev/test
   # instance) secrets — see README.md's Testing section for the full list.
-  # Skipped entirely (not failed) until NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY is
-  # added under Settings > Secrets and variables > Actions, so a fresh clone
-  # doesn't show a red CI run before secrets are configured.
+  #
+  # The `secrets` context isn't allowed in a job-level `if:` (GitHub Actions
+  # rejects the workflow file outright if you try), so this can't skip the
+  # whole job that way. Instead every step below checks
+  # `env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY != ''` — `env` (unlike `secrets`)
+  # is available in a step's `if:` — so the job "runs" but every step
+  # no-ops until that secret (and presumably the others) is added under
+  # Settings > Secrets and variables > Actions, rather than a fresh clone
+  # showing a red CI run before secrets are configured.
   e2e:
     runs-on: ubuntu-latest
-    if: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY != '' }}
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -55,23 +60,29 @@ jobs:
       CI: true
     steps:
       - uses: actions/checkout@v5
+        if: ${{ env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY != '' }}
 
       - uses: actions/setup-node@v5
+        if: ${{ env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY != '' }}
         with:
           node-version: 22
           cache: npm
 
       - run: npm ci --legacy-peer-deps
+        if: ${{ env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY != '' }}
 
       - run: npx prisma generate
+        if: ${{ env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY != '' }}
 
       - run: npx playwright install --with-deps chromium
+        if: ${{ env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY != '' }}
 
       - name: E2E tests
+        if: ${{ env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY != '' }}
         run: npx playwright test
 
       - name: Upload Playwright report
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
