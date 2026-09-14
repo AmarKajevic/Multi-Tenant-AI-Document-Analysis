@@ -9,7 +9,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { FileText, Users, Brain, ArrowRight, Upload } from "lucide-react";
 import Link from "next/link";
-import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 
 interface OrgDashboardPageProps {
@@ -21,13 +20,9 @@ export default async function OrgDashboardPage({
 }: OrgDashboardPageProps) {
   // Await the params
   const { orgSlug } = await params;
-  const { userId } = await auth();
 
-  if (!userId) {
-    redirect("/sign-in");
-  }
-
-  // Get organization with stats
+  // Auth + membership are already enforced by the parent (dashboard)/[orgSlug]/layout.tsx —
+  // no need to re-check here, just load the org for the stats below.
   const organization = await prisma.organization.findUnique({
     where: { slug: orgSlug },
     include: {
@@ -45,18 +40,6 @@ export default async function OrgDashboardPage({
   });
 
   if (!organization) {
-    redirect("/select-org");
-  }
-
-  // Check membership
-  const membership = await prisma.organizationMember.findFirst({
-    where: {
-      organizationId: organization.id,
-      user: { clerkUserId: userId },
-    },
-  });
-
-  if (!membership) {
     redirect("/select-org");
   }
 

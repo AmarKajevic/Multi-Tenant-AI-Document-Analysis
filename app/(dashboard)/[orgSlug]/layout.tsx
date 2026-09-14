@@ -21,7 +21,7 @@ export default async function OrgLayout({ children, params }: OrgLayoutProps) {
   // Check if orgSlug is defined
   if (!orgSlug) {
     console.error("orgSlug is undefined");
-    redirect("/dashboard");
+    redirect("/select-org");
   }
 
   // Get organization
