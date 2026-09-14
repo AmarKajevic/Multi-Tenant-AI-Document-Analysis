@@ -39,9 +39,26 @@ export async function DELETE(request: Request, { params }: RouteParams) {
       );
     }
 
-    if (document.organization.members.length === 0) {
+    const membership = document.organization.members[0];
+
+    if (!membership) {
       return NextResponse.json(
         { error: "You do not have permission to delete this document" },
+        { status: 403 },
+      );
+    }
+
+    // Anyone can delete their own upload; deleting someone else's requires
+    // an org owner role.
+    const isUploader = document.userId === membership.userId;
+    const isOrgOwner = membership.role === "owner";
+
+    if (!isUploader && !isOrgOwner) {
+      return NextResponse.json(
+        {
+          error:
+            "Only the uploader or an organization owner can delete this document",
+        },
         { status: 403 },
       );
     }
@@ -65,10 +82,10 @@ export async function DELETE(request: Request, { params }: RouteParams) {
       success: true,
       message: "Document deleted successfully",
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Delete document error:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to delete document" },
+      { error: "Failed to delete document" },
       { status: 500 },
     );
   }

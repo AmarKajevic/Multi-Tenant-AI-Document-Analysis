@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { auth } from "@clerk/nextjs/server";
+import { auth, clerkClient } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
@@ -11,25 +11,44 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const {clerkOrgId, name, slug} = body;
+        const {clerkOrgId} = body;
 
-        if(!clerkOrgId || !name) {
+        if(!clerkOrgId) {
             return NextResponse.json(
-                {error: "Missing required fields"}
+                {error: "Missing required fields"},
+                {status: 400}
             )
         }
 
-        //check if organization already exists
-        const existingOrg = await prisma.organization.findUnique({
-            where: {clerkOrgId}
-        })
-        if(existingOrg) {
-            return NextResponse.json({success: true, organization: existingOrg, message:"Organizatio already exists"})
+        // Never trust org data (name/slug/role) supplied by the client — verify
+        // against Clerk itself that this organization exists and that the
+        // requesting user is actually a member of it, then pull the
+        // authoritative name/slug/role from Clerk's response.
+        const client = await clerkClient();
+
+        const organization = await client.organizations
+            .getOrganization({ organizationId: clerkOrgId })
+            .catch(() => null);
+
+        if (!organization) {
+            return NextResponse.json({error: "Organization not found"}, {status:404})
         }
 
-        //find or create user
+        const { data: memberships } = await client.organizations.getOrganizationMembershipList({
+            organizationId: clerkOrgId,
+            userId: [userId],
+        });
 
-        let user = await prisma.user.findUnique({
+        const membership = memberships[0];
+        if (!membership) {
+            return NextResponse.json(
+                {error: "You are not a member of this organization"},
+                {status:403}
+            )
+        }
+
+        //find user synced from Clerk (see lib/sync-user.ts)
+        const user = await prisma.user.findUnique({
             where: {clerkUserId: userId}
         })
 
@@ -37,32 +56,43 @@ export async function POST(request: Request) {
            return NextResponse.json({error: "Unauthorized"}, {status:401})
         }
 
-        //create organization in db
-         const organization = await prisma.organization.create({
-            data: {
-                clerkOrgId,
-                name,
-                slug: slug || name.toLowerCase().replace(/\s+/g, "-")
-            }
-         })
-         await prisma.organizationMember.create({
-            data: {
-                userId: user?.id,
-                organizationId: organization.id,
-                role: "owner",
+        const role = membership.role.includes("admin") ? "owner" : "member";
 
-            }
-         })
+        //upsert organization in db using Clerk's own name/slug, not the client's
+        const dbOrganization = await prisma.organization.upsert({
+            where: { clerkOrgId },
+            update: { name: organization.name, slug: organization.slug },
+            create: {
+                clerkOrgId,
+                name: organization.name,
+                slug: organization.slug,
+            },
+        })
+
+        await prisma.organizationMember.upsert({
+            where: {
+                organizationId_userId: {
+                    organizationId: dbOrganization.id,
+                    userId: user.id,
+                },
+            },
+            update: { role },
+            create: {
+                userId: user.id,
+                organizationId: dbOrganization.id,
+                role,
+            },
+        })
 
          return NextResponse.json({
             success: true,
-            organization,
-            message: "Organization created successfully"
+            organization: dbOrganization,
+            message: "Organization synced successfully"
          })
 
-    } catch (error:any) {
+    } catch (error) {
         console.error("Organization Error", error)
-        return NextResponse.json({error: error.message || "failed to create organization"}, {status:500})
-        
+        return NextResponse.json({error: "Failed to create organization"}, {status:500})
+
     }
 }

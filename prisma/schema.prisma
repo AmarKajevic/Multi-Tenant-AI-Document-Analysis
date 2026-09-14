@@ -24,9 +24,9 @@ model OrganizationMember {
   organizationId String
   userId         String
   role           String   @default("member") 
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  user           User         @relation(fields: [userId], references: [id])
-  
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([organizationId, userId])
   @@map("organization_members")
 }
@@ -55,10 +55,10 @@ model Document {
   sentiment      String?
   organizationId String
   userId         String
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  user           User         @relation(fields: [userId], references: [id])
-  
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   createdAt      DateTime @default(now())
-  
+
   @@map("documents")
 }

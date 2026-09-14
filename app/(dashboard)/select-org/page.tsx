@@ -74,17 +74,14 @@ export default function SelectOrgPage() {
       toast.success(`Organization "${orgName}" created successfully`);
       setOrgName("");
 
-      // 2. Save to your database (optional)
+      // 2. Sync to our database — the server looks up the org's authoritative
+      // name/slug/role directly from Clerk, it doesn't trust anything but the id.
       try {
         const response = await fetch("/api/organizations", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             clerkOrgId: newOrg.id,
-            name: orgName.trim(),
-            slug:
-              //replaces all sequences of whitespace characters (matched by the regular expression /\s+/g) with a single hyphen (-)
-              newOrg.slug || orgName.trim().toLowerCase().replace(/\s+/g, "-"),
           }),
         });
 
